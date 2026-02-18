@@ -1,0 +1,623 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(pwd)"
+APP="$ROOT/app"
+TS="$(date +%Y%m%d_%H%M%S)"
+
+backup(){ [ -f "$1" ] && cp -v "$1" "$1.bak_$TS"; }
+
+# 1) Global CSS: white gradient + soft UI
+CSS="$APP/globals.css"
+backup "$CSS"
+cat > "$CSS" <<'CSS'
+:root{
+  --bg0:#ffffff;
+  --txt:#0b1220;
+  --muted:rgba(11,18,32,.62);
+  --card:rgba(255,255,255,.75);
+  --stroke:rgba(11,18,32,.10);
+  --shadow: 0 18px 50px rgba(15,23,42,.10);
+  --shadow2: 0 10px 24px rgba(15,23,42,.10);
+  --r:18px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  color:var(--txt);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background:
+    radial-gradient(1200px 600px at 12% 20%, rgba(255, 94, 212, .16), transparent 55%),
+    radial-gradient(900px 600px at 78% 18%, rgba(0, 173, 255, .16), transparent 55%),
+    radial-gradient(1100px 700px at 70% 85%, rgba(0, 255, 190, .14), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #fbfbff 35%, #ffffff 100%);
+}
+
+a{ color:inherit; }
+.container{ max-width:1200px; margin:0 auto; padding:26px; }
+
+.shell{
+  min-height: calc(100vh - 64px);
+}
+
+.nav{
+  height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 22px;
+  border-bottom:1px solid rgba(11,18,32,.08);
+  background:rgba(255,255,255,.6);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand{ display:flex; align-items:center; gap:10px; }
+.logo{
+  width:30px; height:30px; border-radius:999px;
+  background: conic-gradient(from 210deg, #7c3aed, #06b6d4, #22c55e, #fb7185, #7c3aed);
+  box-shadow: 0 0 0 6px rgba(255,255,255,.8);
+}
+.brandTitle{ font-weight:950; letter-spacing:.2px; }
+.brandSub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+.navLinks{ display:flex; gap:16px; font-weight:800; color:rgba(11,18,32,.78); }
+.navLinks a{ text-decoration:none; padding:8px 10px; border-radius:12px; }
+.navLinks a:hover{ background:rgba(11,18,32,.05); }
+
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  border:1px solid rgba(11,18,32,.10);
+  background:rgba(255,255,255,.6);
+  border-radius:999px;
+  box-shadow: var(--shadow2);
+}
+
+.card{
+  border:1px solid var(--stroke);
+  background: var(--card);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+
+.cardPad{ padding:16px; }
+
+.h1{ font-size:34px; font-weight:950; letter-spacing:-0.6px; }
+.h2{ font-size:16px; font-weight:950; }
+.muted{ color:var(--muted); }
+
+.row{ display:flex; gap:12px; align-items:center; }
+.grid2{ display:grid; grid-template-columns: 1.15fr .85fr; gap:14px; }
+.grid3{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; }
+
+.btn{
+  border-radius:14px;
+  border:1px solid rgba(11,18,32,.12);
+  background: rgba(255,255,255,.75);
+  padding:10px 14px;
+  font-weight:950;
+  cursor:pointer;
+}
+.btn:hover{ background: rgba(255,255,255,.95); }
+.btnPrimary{
+  background: linear-gradient(135deg, rgba(59,130,246,.95), rgba(34,211,238,.95));
+  border:1px solid rgba(59,130,246,.25);
+  color:white;
+}
+.btnPrimary:hover{ filter: brightness(1.02); }
+.btnDanger{
+  background: linear-gradient(135deg, rgba(239,68,68,.92), rgba(251,113,133,.92));
+  border:1px solid rgba(239,68,68,.25);
+  color:white;
+}
+
+.input, .select{
+  width:100%;
+  padding:11px 12px;
+  border-radius:14px;
+  border:1px solid rgba(11,18,32,.12);
+  background: rgba(255,255,255,.75);
+  outline:none;
+}
+.input:focus, .select:focus{ border-color: rgba(59,130,246,.55); box-shadow:0 0 0 4px rgba(59,130,246,.12); }
+
+.badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:950;
+  border:1px solid rgba(11,18,32,.10);
+  background: rgba(255,255,255,.6);
+}
+
+.badgeGreen{ background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.30); }
+.badgeBlue{ background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.30); }
+.badgeAmber{ background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.30); }
+.badgeRed{ background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.30); }
+
+.hr{ border:none; border-top:1px solid rgba(11,18,32,.08); margin:14px 0; }
+
+.small{ font-size:12px; }
+CSS
+
+# 2) Update layout: premium nav + keep AuthGate
+LAY="$APP/layout.tsx"
+backup "$LAY"
+cat > "$LAY" <<'TSX'
+import "./globals.css";
+import Link from "next/link";
+import AuthGate from "./components/AuthGate";
+
+export const metadata = {
+  title: "Instadrafts • Agent Console",
+  description: "Agent Workbench for portal execution and delivery",
+};
+
+function TopNav() {
+  return (
+    <div className="nav">
+      <div className="brand">
+        <div className="logo" />
+        <div>
+          <div className="brandTitle">INSTADRAFTS</div>
+          <div className="brandSub">Agent Console</div>
+        </div>
+      </div>
+
+      <div className="navLinks">
+        <Link href="/tasks">Tasks</Link>
+        <Link href="/inbox">Inbox</Link>
+        <Link href="/payouts">Payouts</Link>
+      </div>
+    </div>
+  );
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <TopNav />
+        <AuthGate>
+          <div className="shell">{children}</div>
+        </AuthGate>
+      </body>
+    </html>
+  );
+}
+TSX
+
+# 3) Upgrade onboarding visuals
+ONB="$APP/onboarding/page.tsx"
+backup "$ONB"
+cat > "$ONB" <<'TSX'
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+export default function OnboardingPage() {
+  const r = useRouter();
+  const [agentId, setAgentId] = useState("agent_1");
+
+  useEffect(() => {
+    const existing = localStorage.getItem("agentId");
+    if (existing) setAgentId(existing);
+  }, []);
+
+  return (
+    <div className="container">
+      <div className="grid2" style={{ alignItems: "start" }}>
+        <div className="card cardPad">
+          <div className="h1">Welcome to Agent Workbench</div>
+          <p className="muted" style={{ marginTop: 10, lineHeight: 1.5 }}>
+            Execute portal tasks assigned by Admin. Automation helps with typing/navigation.
+            <b> OTP, captcha, and document collection remain manual</b> (human gates).
+          </p>
+
+          <div className="hr" />
+
+          <div style={{ maxWidth: 520 }}>
+            <div className="small muted" style={{ marginBottom: 8 }}>Agent ID</div>
+            <input className="input" value={agentId} onChange={(e)=>setAgentId(e.target.value)} placeholder="agent_1" />
+
+            <div className="row" style={{ marginTop: 12 }}>
+              <button
+                className="btn btnPrimary"
+                onClick={() => {
+                  localStorage.setItem("agentId", (agentId || "agent_1").trim());
+                  r.push("/tasks");
+                }}
+              >
+                Continue
+              </button>
+              <button className="btn" onClick={() => r.push("/login")}>Use Login screen</button>
+            </div>
+
+            <div className="small muted" style={{ marginTop: 14 }}>
+              Next: proper auth (password + Google), session worker (VNC), and step-run buttons.
+            </div>
+          </div>
+        </div>
+
+        <div className="card cardPad">
+          <div className="h2">How execution works</div>
+          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+            <div className="card cardPad" style={{ background: "rgba(255,255,255,.55)" }}>
+              <div style={{ fontWeight: 950 }}>1) Admin assigns you a task</div>
+              <div className="small muted" style={{ marginTop: 6 }}>It appears under Tasks with status ASSIGNED.</div>
+            </div>
+            <div className="card cardPad" style={{ background: "rgba(255,255,255,.55)" }}>
+              <div style={{ fontWeight: 950 }}>2) Start Session</div>
+              <div className="small muted" style={{ marginTop: 6 }}>Opens a time-boxed session (Playwright worker later).</div>
+            </div>
+            <div className="card cardPad" style={{ background: "rgba(255,255,255,.55)" }}>
+              <div style={{ fontWeight: 950 }}>3) Human gates</div>
+              <div className="small muted" style={{ marginTop: 6 }}>OTP/captcha handled by you. Mark status accordingly.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+TSX
+
+# 4) Upgrade tasks list visuals (keep existing API logic file)
+TASKS="$APP/tasks/page.tsx"
+backup "$TASKS"
+
+python - <<'PY'
+import pathlib, re
+p = pathlib.Path("app/tasks/page.tsx")
+t = p.read_text()
+
+# replace the whole file with a nicer version that still calls agentGet from lib/agentApi
+new = r'''
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { agentGet, getAgentId } from "../lib/agentApi";
+
+type Task = {
+  id: string;
+  caseId: string;
+  type: string;
+  status: string;
+  updatedAt?: string;
+};
+
+function badgeClass(status?: string){
+  const s = String(status||"").toUpperCase();
+  if (s.includes("OTP") || s.includes("CAPTCHA")) return "badge badgeAmber";
+  if (s.includes("IN_PROGRESS")) return "badge badgeBlue";
+  if (s.includes("COMPLETE")) return "badge badgeGreen";
+  if (s.includes("FAIL")) return "badge badgeRed";
+  return "badge";
+}
+
+export default function TasksPage() {
+  const [agentId, setAgentId] = useState("agent_1");
+  const [status, setStatus] = useState("ASSIGNED");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [err, setErr] = useState("");
+
+  async function load(aid: string, st: string) {
+    setErr("");
+    const q = st ? `?status=${encodeURIComponent(st)}` : "";
+    const d = await agentGet(`/v1/agent/tasks${q}`, aid);
+    if (!d?.ok) {
+      setTasks([]);
+      setErr(d?.error?.message || "FAILED");
+      return;
+    }
+    setTasks(d?.tasks || []);
+  }
+
+  useEffect(() => {
+    const aid = getAgentId();
+    setAgentId(aid);
+    load(aid, status);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="container">
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div className="h1">My Tasks</div>
+          <div className="muted" style={{ marginTop: 10 }}>
+            Agent: <b>{agentId}</b> • <Link href="/onboarding">change</Link>
+          </div>
+        </div>
+
+        <div className="row">
+          <div>
+            <div className="small muted" style={{ marginBottom: 8 }}>Status</div>
+            <select
+              className="select"
+              value={status}
+              onChange={(e) => {
+                const v = e.target.value;
+                setStatus(v);
+                load(agentId, v);
+              }}
+              style={{ minWidth: 220 }}
+            >
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="WAITING_FOR_OTP">WAITING_FOR_OTP</option>
+              <option value="WAITING_FOR_CAPTCHA">WAITING_FOR_CAPTCHA</option>
+              <option value="SUBMITTED">SUBMITTED</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="">(All)</option>
+            </select>
+          </div>
+          <button className="btn btnPrimary" onClick={() => load(agentId, status)}>Refresh</button>
+        </div>
+      </div>
+
+      {err ? <div className="card cardPad" style={{ marginTop: 14, borderColor: "rgba(239,68,68,.30)", background:"rgba(239,68,68,.08)" }}>{err}</div> : null}
+
+      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+        {tasks.map((t) => (
+          <Link key={t.id} href={`/task/${t.id}`} style={{ textDecoration: "none" }}>
+            <div className="card cardPad">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <div style={{ fontWeight: 950 }}>{t.type || "TASK"}</div>
+                <span className={badgeClass(t.status)}>{t.status}</span>
+              </div>
+              <div className="muted" style={{ marginTop: 10 }}>
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.id}</span>
+                {" • case: "}
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.caseId}</span>
+              </div>
+              {t.updatedAt ? <div className="small muted" style={{ marginTop: 8 }}>updated: {t.updatedAt}</div> : null}
+            </div>
+          </Link>
+        ))}
+
+        {!tasks.length && !err ? (
+          <div className="card cardPad" style={{ marginTop: 4 }}>
+            <div style={{ fontWeight: 950 }}>No tasks assigned yet</div>
+            <div className="muted" style={{ marginTop: 6 }}>
+              Once Admin assigns tasks to your Agent ID, they will appear here. You can keep this page open and hit Refresh.
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+'''
+p.write_text(new.strip() + "\n")
+print("✅ Rewrote tasks UI to gradient premium style")
+PY
+
+# 5) Upgrade task detail page with Playwright controls + human-gate buttons
+DETAIL="$APP/task/[taskId]/page.tsx"
+backup "$DETAIL"
+cat > "$DETAIL" <<'TSX'
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { agentGet, agentPost, getAgentId } from "../../lib/agentApi";
+
+const HUMAN_GATES = [
+  { key: "WAITING_FOR_OTP", label: "Waiting for OTP", tone: "btn" },
+  { key: "WAITING_FOR_CAPTCHA", label: "Captcha needed", tone: "btn" },
+];
+
+function badgeClass(status?: string){
+  const s = String(status||"").toUpperCase();
+  if (s.includes("OTP") || s.includes("CAPTCHA")) return "badge badgeAmber";
+  if (s.includes("IN_PROGRESS")) return "badge badgeBlue";
+  if (s.includes("COMPLETE")) return "badge badgeGreen";
+  if (s.includes("FAIL")) return "badge badgeRed";
+  return "badge";
+}
+
+export default function TaskDetail({ params }: { params: { taskId: string } }) {
+  const taskId = params.taskId;
+  const [agentId, setAgentId] = useState("agent_1");
+  const [data, setData] = useState<any>(null);
+  const [err, setErr] = useState("");
+
+  const task = data?.task;
+  const c = data?.case;
+  const attachments = data?.attachments || [];
+  const sessions = data?.sessions || [];
+
+  const latestSession = useMemo(() => (sessions?.length ? sessions[0] : null), [sessions]);
+  const vncUrl = latestSession?.vncUrl || latestSession?.noVncUrl || latestSession?.viewerUrl || null;
+
+  async function refresh(aid: string) {
+    setErr("");
+    const d = await agentGet(`/v1/agent/tasks/${taskId}`, aid);
+    if (!d?.ok) {
+      setData(null);
+      setErr(d?.error?.message || "FAILED");
+      return;
+    }
+    setData(d);
+  }
+
+  useEffect(() => {
+    const aid = getAgentId();
+    setAgentId(aid);
+    refresh(aid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
+
+  async function setStatus(status: string) {
+    const r = await agentPost(`/v1/agent/tasks/${taskId}/status`, agentId, { status });
+    if (!r?.ok) alert(r?.error?.message || "Status update failed");
+    await refresh(agentId);
+  }
+
+  async function requestSession() {
+    const r = await agentPost(`/v1/agent/tasks/${taskId}/request-session`, agentId, {});
+    if (!r?.ok) alert(r?.error?.message || "Session request failed");
+    await refresh(agentId);
+  }
+
+  function openSession() {
+    if (!vncUrl) return alert("Session viewer/VNC URL will appear once worker integration is enabled.");
+    window.open(vncUrl, "_blank", "noopener,noreferrer");
+  }
+
+  // Placeholder controls until worker exists
+  function runStep(step: number) {
+    alert(`Step ${step} will run via Playwright worker soon.\n\nFor now: Start Session → do portal actions manually → update status gates (OTP/Captcha) → mark Submitted/Completed.`);
+  }
+
+  return (
+    <div className="container">
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div className="h1">Task</div>
+          <div className="muted" style={{ marginTop: 10 }}>
+            <Link href="/tasks">← Back</Link> • Agent: <b>{agentId}</b>
+          </div>
+          <div className="small muted" style={{ marginTop: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+            {taskId}
+          </div>
+        </div>
+
+        <div className="row">
+          <button className="btn btnPrimary" onClick={requestSession}>Start Session</button>
+          <button className="btn" onClick={openSession}>Open Session</button>
+          <button className="btn" onClick={() => refresh(agentId)}>Refresh</button>
+        </div>
+      </div>
+
+      {err ? <div className="card cardPad" style={{ marginTop: 14, borderColor:"rgba(239,68,68,.30)", background:"rgba(239,68,68,.08)" }}>{err}</div> : null}
+
+      <div className="grid2" style={{ marginTop: 16 }}>
+        {/* LEFT */}
+        <div className="card cardPad">
+          <div className="row" style={{ justifyContent:"space-between" }}>
+            <div className="h2">Case Summary</div>
+            <span className={badgeClass(task?.status)}>{task?.status || "-"}</span>
+          </div>
+
+          <div className="hr" />
+
+          <div className="grid3">
+            <div>
+              <div className="small muted">Case ID</div>
+              <div style={{ fontWeight: 900, fontFamily:"ui-monospace, Menlo, monospace" }}>{c?.id || "-"}</div>
+            </div>
+            <div>
+              <div className="small muted">State</div>
+              <div style={{ fontWeight: 900 }}>{c?.state || "-"}</div>
+            </div>
+            <div>
+              <div className="small muted">Language</div>
+              <div style={{ fontWeight: 900 }}>{c?.language || "-"}</div>
+            </div>
+          </div>
+
+          <div className="hr" />
+
+          <div className="grid3">
+            <div>
+              <div className="small muted">DocType</div>
+              <div style={{ fontWeight: 900 }}>{c?.docType || "-"}</div>
+            </div>
+            <div>
+              <div className="small muted">Task Type</div>
+              <div style={{ fontWeight: 900 }}>{task?.type || "-"}</div>
+            </div>
+            <div>
+              <div className="small muted">Assigned To</div>
+              <div style={{ fontWeight: 900, fontFamily:"ui-monospace, Menlo, monospace" }}>{task?.assignedToId || "-"}</div>
+            </div>
+          </div>
+
+          <div className="hr" />
+
+          <div className="h2">Playwright controls</div>
+          <div className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
+            Playwright is used only for <b>navigation + form fill</b>. OTP/Captcha remains manual. Use “human gate” buttons below to keep Admin informed.
+          </div>
+
+          <div className="row" style={{ marginTop: 12, flexWrap:"wrap" }}>
+            <button className="btn btnPrimary" onClick={() => setStatus("IN_PROGRESS")}>Start Work</button>
+            <button className="btn" onClick={() => runStep(1)}>Run Step 1</button>
+            <button className="btn" onClick={() => runStep(2)}>Run Step 2</button>
+            <button className="btn" onClick={() => setStatus("SUBMITTED")}>Mark Submitted</button>
+            <button className="btn btnDanger" onClick={() => setStatus("FAILED")}>Mark Failed</button>
+          </div>
+
+          <div className="row" style={{ marginTop: 10, flexWrap:"wrap" }}>
+            {HUMAN_GATES.map(g => (
+              <button key={g.key} className="btn" onClick={() => setStatus(g.key)}>{g.label}</button>
+            ))}
+            <button className="btn" onClick={() => setStatus("COMPLETED")}>Completed</button>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div className="card cardPad">
+            <div className="row" style={{ justifyContent:"space-between" }}>
+              <div className="h2">Session</div>
+              {latestSession ? <span className="badge badgeBlue">{latestSession.status || "SESSION"}</span> : <span className="badge">NONE</span>}
+            </div>
+            <div className="muted" style={{ marginTop: 8 }}>
+              {latestSession ? (
+                <>
+                  <div className="small muted">sessionId</div>
+                  <div style={{ fontFamily:"ui-monospace, Menlo, monospace", fontWeight: 900 }}>{latestSession.id}</div>
+                  <div className="small muted" style={{ marginTop: 8 }}>expiresAt</div>
+                  <div style={{ fontWeight: 900 }}>{latestSession.expiresAt || "-"}</div>
+                  <div className="small muted" style={{ marginTop: 8 }}>viewer</div>
+                  <div style={{ fontWeight: 900 }}>{vncUrl ? "Ready" : "Worker not attached yet"}</div>
+                </>
+              ) : (
+                <div style={{ lineHeight: 1.5 }}>
+                  No sessions yet. Click <b>Start Session</b> to request one.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card cardPad">
+            <div className="h2">Attachments</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              {attachments.map((a: any) => (
+                <div key={a.id} className="card cardPad" style={{ background:"rgba(255,255,255,.55)", boxShadow:"none" }}>
+                  <div style={{ fontWeight: 950 }}>{a.fileName || "Attachment"}</div>
+                  {a.url ? (
+                    <a href={a.url} target="_blank" rel="noreferrer" className="small" style={{ color:"rgba(59,130,246,.95)", fontWeight:900 }}>
+                      Open
+                    </a>
+                  ) : (
+                    <div className="small muted">No URL</div>
+                  )}
+                </div>
+              ))}
+              {!attachments.length ? <div className="muted">No attachments.</div> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="small muted" style={{ marginTop: 14 }}>
+        Tip: Keep statuses honest. Admin & Client see these states. Use WAITING_FOR_OTP / WAITING_FOR_CAPTCHA to show human gates clearly.
+      </div>
+    </div>
+  );
+}
+TSX
+
+echo "✅ patch_954 applied: white gradient + premium cards + Playwright/human-gate buttons"

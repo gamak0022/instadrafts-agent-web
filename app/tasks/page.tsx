@@ -12,6 +12,15 @@ type Task = {
   updatedAt?: string;
 };
 
+function badgeClass(status?: string){
+  const s = String(status||"").toUpperCase();
+  if (s.includes("OTP") || s.includes("CAPTCHA")) return "badge badgeAmber";
+  if (s.includes("IN_PROGRESS")) return "badge badgeBlue";
+  if (s.includes("COMPLETE")) return "badge badgeGreen";
+  if (s.includes("FAIL")) return "badge badgeRed";
+  return "badge";
+}
+
 export default function TasksPage() {
   const [agentId, setAgentId] = useState("agent_1");
   const [status, setStatus] = useState("ASSIGNED");
@@ -38,26 +47,27 @@ export default function TasksPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+    <div className="container">
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 950 }}>My Tasks</h1>
-          <div style={{ marginTop: 6, opacity: 0.75 }}>
+          <div className="h1">My Tasks</div>
+          <div className="muted" style={{ marginTop: 10 }}>
             Agent: <b>{agentId}</b> • <Link href="/onboarding">change</Link>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <div className="row">
           <div>
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>Status</div>
+            <div className="small muted" style={{ marginBottom: 8 }}>Status</div>
             <select
+              className="select"
               value={status}
               onChange={(e) => {
                 const v = e.target.value;
                 setStatus(v);
                 load(agentId, v);
               }}
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+              style={{ minWidth: 220 }}
             >
               <option value="ASSIGNED">ASSIGNED</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -68,51 +78,36 @@ export default function TasksPage() {
               <option value="">(All)</option>
             </select>
           </div>
-
-          <button
-            onClick={() => load(agentId, status)}
-            style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ddd", fontWeight: 900 }}
-          >
-            Refresh
-          </button>
+          <button className="btn btnPrimary" onClick={() => load(agentId, status)}>Refresh</button>
         </div>
       </div>
 
-      {err ? <p style={{ marginTop: 12, color: "crimson" }}>{err}</p> : null}
+      {err ? <div className="card cardPad" style={{ marginTop: 14, borderColor: "rgba(239,68,68,.30)", background:"rgba(239,68,68,.08)" }}>{err}</div> : null}
 
       <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
         {tasks.map((t) => (
-          <Link
-            key={t.id}
-            href={`/task/${t.id}`}
-            style={{
-              border: "1px solid #e5e5e5",
-              borderRadius: 14,
-              padding: 14,
-              textDecoration: "none",
-              color: "inherit",
-              background: "#fff",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ fontWeight: 950 }}>{t.type || "TASK"}</div>
-              <div style={{ opacity: 0.85, fontWeight: 900 }}>{t.status}</div>
-            </div>
-            <div style={{ marginTop: 8, opacity: 0.75 }}>
-              <span style={{ fontFamily: "monospace" }}>{t.id}</span> • case:{" "}
-              <span style={{ fontFamily: "monospace" }}>{t.caseId}</span>
-            </div>
-            {t.updatedAt ? (
-              <div style={{ marginTop: 6, opacity: 0.6, fontSize: 12 }}>
-                updated: {t.updatedAt}
+          <Link key={t.id} href={`/task/${t.id}`} style={{ textDecoration: "none" }}>
+            <div className="card cardPad">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <div style={{ fontWeight: 950 }}>{t.type || "TASK"}</div>
+                <span className={badgeClass(t.status)}>{t.status}</span>
               </div>
-            ) : null}
+              <div className="muted" style={{ marginTop: 10 }}>
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.id}</span>
+                {" • case: "}
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.caseId}</span>
+              </div>
+              {t.updatedAt ? <div className="small muted" style={{ marginTop: 8 }}>updated: {t.updatedAt}</div> : null}
+            </div>
           </Link>
         ))}
 
         {!tasks.length && !err ? (
-          <div style={{ marginTop: 12, opacity: 0.7 }}>
-            No tasks found. Admin must assign a Task with assignedRole=AGENT and assignedToId={agentId}.
+          <div className="card cardPad" style={{ marginTop: 4 }}>
+            <div style={{ fontWeight: 950 }}>No tasks assigned yet</div>
+            <div className="muted" style={{ marginTop: 6 }}>
+              Once Admin assigns tasks to your Agent ID, they will appear here. You can keep this page open and hit Refresh.
+            </div>
           </div>
         ) : null}
       </div>
