@@ -1,171 +1,120 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { agentGet, getAgentId } from "../lib/agentApi";
 
 type Task = {
   id: string;
   caseId: string;
   type: string;
   status: string;
-  assignedRole: string;
-  assignedToId?: string | null;
   updatedAt?: string;
-  createdAt?: string;
 };
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="stat">
-      <div className="stat__value">{value}</div>
-      <div className="stat__label">{label}</div>
-    </div>
-  );
-}
-
-function fmt(ts?: string) {
-  if (!ts) return "—";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
-}
-
-export default function TasksDashboard() {
-  const [agentId, setAgentId] = useState<string>("");
+export default function TasksPage() {
+  const [agentId, setAgentId] = useState("agent_1");
+  const [status, setStatus] = useState("ASSIGNED");
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [err, setErr] = useState<string>("");
+  const [err, setErr] = useState("");
 
-  const counts = useMemo(() => {
-    const c = { ASSIGNED: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0, OTHER: 0 };
-    for (const t of tasks) {
-      const s = (t.status || "").toUpperCase();
-      if (s === "ASSIGNED") c.ASSIGNED++;
-      else if (s === "IN_PROGRESS") c.IN_PROGRESS++;
-      else if (s === "BLOCKED") c.BLOCKED++;
-      else if (s === "DONE" || s === "COMPLETED") c.DONE++;
-      else c.OTHER++;
-    }
-    return c;
-  }, [tasks]);
-
-  async function load() {
-    setLoading(true);
+  async function load(aid: string, st: string) {
     setErr("");
-    try {
-      const id = (localStorage.getItem("agent_id") || "").trim();
-      setAgentId(id);
-
-      if (!id) {
-        setErr("Missing Agent ID. Please complete onboarding.");
-        setTasks([]);
-        return;
-      }
-
-      const res = await fetch("/api/v1/agent/tasks", {
-        cache: "no-store",
-        headers: {
-          "x-user-role": "AGENT",
-          "x-user-id": id,
-        },
-      });
-
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setErr(json?.error?.message || `API_ERROR_${res.status}`);
-        setTasks([]);
-        return;
-      }
-
-      setTasks(Array.isArray(json?.tasks) ? json.tasks : []);
-    } catch (e: any) {
-      setErr(String(e?.message || e || "UNKNOWN_ERROR"));
+    const q = st ? `?status=${encodeURIComponent(st)}` : "";
+    const d = await agentGet(`/v1/agent/tasks${q}`, aid);
+    if (!d?.ok) {
       setTasks([]);
-    } finally {
-      setLoading(false);
+      setErr(d?.error?.message || "FAILED");
+      return;
     }
+    setTasks(d?.tasks || []);
   }
 
   useEffect(() => {
-    load();
+    const aid = getAgentId();
+    setAgentId(aid);
+    load(aid, status);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="stack">
-      <div className="pageHead">
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div className="h1">Dashboard</div>
-          <div className="muted">
-            Agent: <b>{agentId || "—"}</b>
+          <h1 style={{ fontSize: 26, fontWeight: 950 }}>My Tasks</h1>
+          <div style={{ marginTop: 6, opacity: 0.75 }}>
+            Agent: <b>{agentId}</b> • <Link href="/onboarding">change</Link>
           </div>
         </div>
-        <div className="row">
-          <button className="btn btn--secondary" onClick={load} disabled={loading}>
-            {loading ? "Refreshing…" : "Refresh"}
+
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>Status</div>
+            <select
+              value={status}
+              onChange={(e) => {
+                const v = e.target.value;
+                setStatus(v);
+                load(agentId, v);
+              }}
+              style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+            >
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="WAITING_FOR_OTP">WAITING_FOR_OTP</option>
+              <option value="WAITING_FOR_CAPTCHA">WAITING_FOR_CAPTCHA</option>
+              <option value="SUBMITTED">SUBMITTED</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="">(All)</option>
+            </select>
+          </div>
+
+          <button
+            onClick={() => load(agentId, status)}
+            style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ddd", fontWeight: 900 }}
+          >
+            Refresh
           </button>
-          <a className="btn" href="/onboarding">
-            Settings
-          </a>
         </div>
       </div>
 
-      <div className="stats">
-        <Stat label="Assigned" value={counts.ASSIGNED} />
-        <Stat label="In progress" value={counts.IN_PROGRESS} />
-        <Stat label="Blocked" value={counts.BLOCKED} />
-        <Stat label="Done" value={counts.DONE} />
-      </div>
+      {err ? <p style={{ marginTop: 12, color: "crimson" }}>{err}</p> : null}
 
-      <div className="card">
-        <div className="card__title">My Tasks</div>
-
-        {err ? (
-          <div className="empty">
-            <div className="empty__title">Cannot load tasks</div>
-            <div className="empty__desc">{err}</div>
-            <div className="row">
-              <a className="btn" href="/onboarding">Fix onboarding</a>
-              <button className="btn btn--secondary" onClick={load}>Retry</button>
+      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+        {tasks.map((t) => (
+          <Link
+            key={t.id}
+            href={`/task/${t.id}`}
+            style={{
+              border: "1px solid #e5e5e5",
+              borderRadius: 14,
+              padding: 14,
+              textDecoration: "none",
+              color: "inherit",
+              background: "#fff",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ fontWeight: 950 }}>{t.type || "TASK"}</div>
+              <div style={{ opacity: 0.85, fontWeight: 900 }}>{t.status}</div>
             </div>
-          </div>
-        ) : loading ? (
-          <div className="empty">
-            <div className="empty__title">Loading…</div>
-            <div className="empty__desc">Fetching assigned tasks.</div>
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="empty">
-            <div className="empty__title">No tasks yet</div>
-            <div className="empty__desc">
-              Ask Admin to assign a case to you. Once assigned, it will appear here automatically.
+            <div style={{ marginTop: 8, opacity: 0.75 }}>
+              <span style={{ fontFamily: "monospace" }}>{t.id}</span> • case:{" "}
+              <span style={{ fontFamily: "monospace" }}>{t.caseId}</span>
             </div>
-            <div className="row">
-              <button className="btn btn--secondary" onClick={load}>Refresh</button>
-            </div>
-          </div>
-        ) : (
-          <div className="list">
-            {tasks.map((t) => (
-              <div className="item" key={t.id}>
-                <div className="item__main">
-                  <div className="item__title">
-                    <span className="mono">{t.caseId}</span>
-                    <span className="dot" />
-                    <span className="pill">{(t.status || "—").toUpperCase()}</span>
-                  </div>
-                  <div className="item__meta">
-                    Task: <span className="mono">{t.id}</span> • Updated: {fmt(t.updatedAt)}
-                  </div>
-                </div>
-                <div className="item__cta">
-                  <a className="btn btn--secondary" href={`/tasks/${t.id}`}>
-                    Open
-                  </a>
-                </div>
+            {t.updatedAt ? (
+              <div style={{ marginTop: 6, opacity: 0.6, fontSize: 12 }}>
+                updated: {t.updatedAt}
               </div>
-            ))}
+            ) : null}
+          </Link>
+        ))}
+
+        {!tasks.length && !err ? (
+          <div style={{ marginTop: 12, opacity: 0.7 }}>
+            No tasks found. Admin must assign a Task with assignedRole=AGENT and assignedToId={agentId}.
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

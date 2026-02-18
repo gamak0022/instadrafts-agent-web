@@ -1,116 +1,57 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getAgentId, setAgentId } from "../lib/agentApi";
 
-function Badge({ ok, text }: { ok: boolean; text: string }) {
-  return (
-    <span className={ok ? "badge badge--ok" : "badge badge--warn"}>
-      <span className="badge__dot" />
-      {text}
-    </span>
-  );
-}
-
-export default function Onboarding() {
-  const router = useRouter();
-  const [agentId, setAgentId] = useState("");
-  const [apiOk, setApiOk] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  const apiBase = useMemo(() => {
-    // If you already use NEXT_PUBLIC_API_BASE in your repo, keep this.
-    // Otherwise this will still work if /api proxy is configured.
-    return (process.env.NEXT_PUBLIC_API_BASE || "").trim();
-  }, []);
+export default function OnboardingPage() {
+  const r = useRouter();
+  const [agentId, setId] = useState("agent_1");
 
   useEffect(() => {
-    const prev = (localStorage.getItem("agent_id") || "").trim();
-    if (prev) setAgentId(prev);
+    setId(getAgentId());
   }, []);
 
-  async function checkHealth() {
-    setChecking(true);
-    setApiOk(null);
-    try {
-      // Prefer local proxy if present
-      const res = await fetch("/api/health", { cache: "no-store" });
-      if (res.ok) {
-        setApiOk(true);
-      } else {
-        // fallback: if someone configured direct base
-        if (apiBase) {
-          const r2 = await fetch(`${apiBase}/health`, { cache: "no-store" });
-          setApiOk(r2.ok);
-        } else {
-          setApiOk(false);
-        }
-      }
-    } catch {
-      setApiOk(false);
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  function continueNext() {
-    const id = agentId.trim();
-    if (!id) return;
-
-    localStorage.setItem("agent_id", id);
-    localStorage.setItem("agent_onboarding_done", "true");
-    router.replace("/tasks");
-  }
-
   return (
-    <div className="pageCenter">
-      <div className="card card--wide">
-        <div className="h1">Welcome, Agent</div>
-        <p className="muted">
-          This console helps you execute assigned tasks. You will manually handle OTP / uploads.
-          Automation is used only for portal navigation and form-filling.
-        </p>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: 24 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 900 }}>Instadrafts Agent Workbench</h1>
+      <p style={{ marginTop: 8, opacity: 0.8 }}>
+        Sign-in is header-based for now. Set your Agent ID to load your assigned tasks.
+      </p>
 
-        <div className="grid2">
-          <div>
-            <div className="label">Agent ID</div>
-            <input
-              className="input"
-              placeholder="agent_1"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-            />
-            <div className="hint">Ask admin for your Agent ID (example: <b>agent_1</b>).</div>
-          </div>
-
-          <div>
-            <div className="label">Connectivity</div>
-            <div className="row">
-              <button className="btn btn--secondary" onClick={checkHealth} disabled={checking}>
-                {checking ? "Checking…" : "Check API"}
-              </button>
-              {apiOk === null ? (
-                <Badge ok={false} text="Not checked" />
-              ) : apiOk ? (
-                <Badge ok={true} text="Connected" />
-              ) : (
-                <Badge ok={false} text="Not reachable" />
-              )}
-            </div>
-            <div className="hint">
-              If this fails, set <code>NEXT_PUBLIC_API_BASE</code> in Vercel to your Cloud Run URL.
-            </div>
-          </div>
-        </div>
-
-        <div className="divider" />
-
-        <div className="row row--right">
-          <button className="btn" onClick={continueNext} disabled={!agentId.trim()}>
-            Continue to Dashboard
-          </button>
-        </div>
+      <div style={{ marginTop: 16 }}>
+        <label style={{ display: "block", fontWeight: 800 }}>Agent ID</label>
+        <input
+          value={agentId}
+          onChange={(e) => setId(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 10,
+            marginTop: 8,
+            border: "1px solid #ddd",
+            borderRadius: 10,
+          }}
+          placeholder="agent_1"
+        />
       </div>
+
+      <button
+        onClick={() => {
+          setAgentId((agentId || "agent_1").trim());
+          r.push("/tasks");
+        }}
+        style={{
+          marginTop: 16,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #111",
+          background: "#111",
+          color: "#fff",
+          fontWeight: 900,
+        }}
+      >
+        Continue
+      </button>
     </div>
   );
 }
