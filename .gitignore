@@ -10,3 +10,8 @@ coverage/
 # env
 .env
 .env.*
+
+node_modules
+.next
+.vercel
+
