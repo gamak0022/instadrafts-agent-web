@@ -1,8 +1,79 @@
-export default function AgentTaskDetail({params}:{params:{taskId:string}}){
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function TaskDetail({ params }: { params: { taskId: string } }) {
+  const taskId = params.taskId;
+  const [agentId, setAgentId] = useState("");
+  const [status, setStatus] = useState("IN_PROGRESS");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    setAgentId((localStorage.getItem("agent_id") || "").trim());
+  }, []);
+
+  async function update(next: string) {
+    setSaving(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/v1/agent/tasks/${taskId}/update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": "AGENT",
+          "x-user-id": agentId,
+        },
+        body: JSON.stringify({ status: next }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setMsg(json?.error?.message || `API_ERROR_${res.status}`);
+        return;
+      }
+      setStatus(json?.task?.status || next);
+      setMsg("Updated.");
+    } catch (e: any) {
+      setMsg(String(e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <main style={{padding:24}}>
-      <h1 style={{fontSize:22,fontWeight:900}}>Task: {params.taskId}</h1>
-      <p style={{opacity:.75,marginTop:8}}>(Scaffold) Checklist + OTP + uploads + updates.</p>
-    </main>
+    <div className="stack">
+      <div className="pageHead">
+        <div>
+          <div className="h1">Task</div>
+          <div className="muted">
+            <span className="mono">{taskId}</span>
+          </div>
+        </div>
+        <a className="btn btn--secondary" href="/tasks">Back</a>
+      </div>
+
+      <div className="card">
+        <div className="card__title">Execution</div>
+        <p className="muted">
+          Use this page while running Playwright. OTP / uploads are manual. Update status as you progress.
+        </p>
+
+        <div className="row">
+          <button className="btn btn--secondary" disabled={saving} onClick={() => update("IN_PROGRESS")}>
+            In Progress
+          </button>
+          <button className="btn btn--secondary" disabled={saving} onClick={() => update("BLOCKED")}>
+            Blocked
+          </button>
+          <button className="btn" disabled={saving} onClick={() => update("DONE")}>
+            Done
+          </button>
+        </div>
+
+        <div className="hint">
+          Current: <b>{status}</b> {msg ? <>• <span>{msg}</span></> : null}
+        </div>
+      </div>
+    </div>
   );
 }
